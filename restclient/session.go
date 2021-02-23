@@ -4,7 +4,7 @@ import (
 	"net/http"
 )
 
-const subscriptionEndpoint = "https://api.twitch.tv/helix/eventsub/subscriptions"
+const apiBaseURL = "https://api.twitch.tv/helix"
 
 type Client struct {
 	httpClient *http.Client

@@ -12,6 +12,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+const subscriptionEndpoint = apiBaseURL + "/eventsub/subscriptions"
+
 func (c *Client) CreateSubscription(condition interface{}, transport messages.TransportOpts) (*messages.SubscriptionRequestStatus, error) {
 	var reqBody messages.Subscription
 	switch t := condition.(type) {

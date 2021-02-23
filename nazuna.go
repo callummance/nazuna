@@ -1,7 +1,9 @@
 package nazuna
 
 import (
+	"fmt"
 	"net/url"
+	"regexp"
 	"sync"
 
 	"github.com/callummance/nazuna/messages"
@@ -135,6 +137,35 @@ func (c *EventsubClient) ClearSubscriptions() error {
 		c.DeleteSubscription(res.Subscription.ID)
 	}
 	return nil
+}
+
+func (c *EventsubClient) GetUsers(ids, names []string) ([]restclient.TwitchUser, error) {
+	return c.restClient.GetUsers(ids, names)
+}
+
+var broadcasterUrlRegex = regexp.MustCompile(`(?:https?://)?(?:(?:www|go|m)\.)?twitch\.tv/(?P<username>[a-zA-Z0-9_]{4,25})`)
+
+func (c *EventsubClient) GetBroadcaster(urlOrName string) (*restclient.TwitchUser, error) {
+	matches := broadcasterUrlRegex.FindStringSubmatch(urlOrName)
+	switch {
+	case matches == nil:
+		//Regex did not match, so assume we have a username directly
+		users, err := c.GetUsers([]string{}, []string{urlOrName})
+		if err != nil {
+			return nil, fmt.Errorf("%v does not appear to be a twitch url, so assuming it is a username; fetching user data failed due to %v", urlOrName, err)
+		}
+		return &users[0], nil
+	case matches[1] != "":
+		//Regex matches, so we have a url
+		username := matches[1]
+		users, err := c.GetUsers([]string{}, []string{username})
+		if err != nil {
+			return nil, fmt.Errorf("extracted username %v from the provided twitch url; fetching user data failed due to %v", username, err)
+		}
+		return &users[0], nil
+	default:
+		return nil, fmt.Errorf("regex matching failed whilst trying to get broadcaster data for %v", urlOrName)
+	}
 }
 
 func (c *EventsubClient) dispatchMessages() {
