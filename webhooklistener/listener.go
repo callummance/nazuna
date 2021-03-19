@@ -159,7 +159,7 @@ func (l *Listener) verifyMessage(w *http.ResponseWriter, r *http.Request, secret
 	if messageTime.Before(oldestValidTime) {
 		//Message is too old
 		logrus.Infof("Discarded message because it was sent more than %v ago.", messageExpiry)
-		http.Error(*w, err.Error(), http.StatusBadRequest)
+		http.Error(*w, fmt.Errorf("message was sent at %v, wheras only messages sent since %v are currently acceptible", messageTime, oldestValidTime).Error(), http.StatusBadRequest)
 		return nil
 	}
 
