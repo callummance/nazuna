@@ -12,6 +12,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+//NazunaOpts contains the required options to set up a twitch client
 type NazunaOpts struct {
 	WebhookPath    string
 	ListenOn       string
@@ -22,6 +23,7 @@ type NazunaOpts struct {
 	ServerHostname string
 }
 
+//EventsubClient contains both the REST client and the webhook server required for communication with the Twitch API
 type EventsubClient struct {
 	listener      webhooklistener.Listener
 	restClient    restclient.Client
@@ -30,6 +32,7 @@ type EventsubClient struct {
 	transportOpts messages.TransportOpts
 }
 
+//NewClient creates a new EventSubClient
 func NewClient(opts NazunaOpts) (*EventsubClient, error) {
 	//Create listener
 	var listener *webhooklistener.Listener
@@ -117,18 +120,22 @@ func (c *EventsubClient) RegisterHandler(handler interface{}) {
 	}
 }
 
+//CreateSubscription creates a new EventSub subscription for the provided event condition
 func (c *EventsubClient) CreateSubscription(condition interface{}) (*messages.SubscriptionRequestStatus, error) {
 	return c.restClient.CreateSubscription(condition, c.transportOpts)
 }
 
+//Subscriptions returns a list of EventSub subscriptions registered to this client which match the provided filters
 func (c *EventsubClient) Subscriptions(filters restclient.SubscriptionsParams) chan restclient.SubscriptionResult {
 	return c.restClient.Subscriptions(&filters)
 }
 
+//DeleteSubscription unsubscribes from the EventSub subscription corresponding to the provided ID
 func (c *EventsubClient) DeleteSubscription(subscriptionID string) error {
 	return c.restClient.DeleteSubscription(subscriptionID)
 }
 
+//ClearSubscriptions unsubscribes from all EventSub subscriptions
 func (c *EventsubClient) ClearSubscriptions() error {
 	for res := range c.Subscriptions(restclient.SubscriptionsParams{}) {
 		if res.Err != nil {
@@ -139,14 +146,28 @@ func (c *EventsubClient) ClearSubscriptions() error {
 	return nil
 }
 
+//GetUsers returns a list of users who correspond to the provided user IDs or names
 func (c *EventsubClient) GetUsers(ids, names []string) ([]restclient.TwitchUser, error) {
 	return c.restClient.GetUsers(ids, names)
 }
 
-var broadcasterUrlRegex = regexp.MustCompile(`(?:https?://)?(?:(?:www|go|m)\.)?twitch\.tv/(?P<username>[a-zA-Z0-9_]{4,25})`)
+//GetStreams takes a set of query options and returns a slice of matching twitchstreams
+func (c *EventsubClient) GetStreams(filters restclient.GetStreamsOpts) ([]restclient.TwitchStream, error) {
+	var streams []restclient.TwitchStream
+	for res := range c.restClient.GetStreamsIter(filters) {
+		if res.Err != nil {
+			return nil, res.Err
+		}
+		streams = append(streams, *res.Stream)
+	}
+	return streams, nil
+}
 
+var broadcasterURLRegex = regexp.MustCompile(`(?:https?://)?(?:(?:www|go|m)\.)?twitch\.tv/(?P<username>[a-zA-Z0-9_]{4,25})`)
+
+//GetBroadcaster looks up a twitch user by either their name or channel url.
 func (c *EventsubClient) GetBroadcaster(urlOrName string) (*restclient.TwitchUser, error) {
-	matches := broadcasterUrlRegex.FindStringSubmatch(urlOrName)
+	matches := broadcasterURLRegex.FindStringSubmatch(urlOrName)
 	switch {
 	case matches == nil:
 		//Regex did not match, so assume we have a username directly

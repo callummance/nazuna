@@ -29,3 +29,8 @@ type subscriptionsPage struct {
 	Limit      int                     `json:"limit"`
 	Pagination paginationCursor        `json:"pagination"`
 }
+
+type streamsPage struct {
+	Data       []TwitchStream   `json:"data"`
+	Pagination paginationCursor `json:"pagination"`
+}
