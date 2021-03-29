@@ -32,9 +32,10 @@ type Listener struct {
 	secret               string
 	notificationsChannel chan messages.EventNotificationMessage
 	closeChannel         chan interface{}
+	permissive           bool
 }
 
-func NewListenerWithSecret(secret string) (*Listener, error) {
+func NewListenerWithSecret(secret string, permissive bool) (*Listener, error) {
 	messageIDs := cache.New(messageIDCacheExpiry, messageIDCacheCleanup)
 	notificationChannel := make(chan messages.EventNotificationMessage)
 	closeChannel := make(chan interface{})
@@ -43,15 +44,16 @@ func NewListenerWithSecret(secret string) (*Listener, error) {
 		secret:               secret,
 		notificationsChannel: notificationChannel,
 		closeChannel:         closeChannel,
+		permissive:           permissive,
 	}, nil
 }
 
-func NewListener() (*Listener, error) {
+func NewListener(permissive bool) (*Listener, error) {
 	secret, err := GenSecret()
 	if err != nil {
 		return nil, err
 	}
-	return NewListenerWithSecret(secret)
+	return NewListenerWithSecret(secret, permissive)
 }
 
 func GenSecret() (string, error) {
@@ -156,7 +158,7 @@ func (l *Listener) verifyMessage(w *http.ResponseWriter, r *http.Request, secret
 		http.Error(*w, err.Error(), http.StatusInternalServerError)
 		return nil
 	}
-	if messageTime.Before(oldestValidTime) {
+	if messageTime.Before(oldestValidTime) && !l.permissive {
 		//Message is too old
 		logrus.Infof("Discarded message because it was sent more than %v ago.", messageExpiry)
 		http.Error(*w, fmt.Errorf("message was sent at %v, wheras only messages sent since %v are currently acceptible", messageTime, oldestValidTime).Error(), http.StatusBadRequest)
@@ -165,7 +167,7 @@ func (l *Listener) verifyMessage(w *http.ResponseWriter, r *http.Request, secret
 
 	//Check if we have seen message before
 	_, seenBefore := l.processedMessages.Get(msgID)
-	if seenBefore {
+	if seenBefore && !l.permissive {
 		//Message is seen before
 		logrus.Infof("Discarded message because it was recieved before.", messageExpiry)
 		(*w).WriteHeader(http.StatusOK)
@@ -192,7 +194,7 @@ func (l *Listener) verifyMessage(w *http.ResponseWriter, r *http.Request, secret
 		logrus.Warnf("Provided HMAC signature '%v' was not valid hexadecimal: %v", headerSig, err)
 	}
 
-	if hmac.Equal(calculatedHash, providedHash) {
+	if l.permissive || hmac.Equal(calculatedHash, providedHash) {
 		return bodyBuf.Bytes()
 	}
 	http.Error(*w, "Hash did not match", http.StatusForbidden)

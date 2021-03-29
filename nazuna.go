@@ -21,6 +21,7 @@ type NazunaOpts struct {
 	Scopes         []string
 	Secret         string
 	ServerHostname string
+	Permissive     bool
 }
 
 //EventsubClient contains both the REST client and the webhook server required for communication with the Twitch API
@@ -38,10 +39,10 @@ func NewClient(opts NazunaOpts) (*EventsubClient, error) {
 	var listener *webhooklistener.Listener
 	var err error
 	if opts.Secret == "" {
-		listener, err = webhooklistener.NewListener()
+		listener, err = webhooklistener.NewListener(opts.Permissive)
 		opts.Secret = listener.Secret()
 	} else {
-		listener, err = webhooklistener.NewListenerWithSecret(opts.Secret)
+		listener, err = webhooklistener.NewListenerWithSecret(opts.Secret, opts.Permissive)
 	}
 	if err != nil {
 		return nil, err
