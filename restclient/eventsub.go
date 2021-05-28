@@ -63,6 +63,7 @@ func (c *Client) CreateSubscription(condition interface{}, transport messages.Tr
 
 	//Marshal request body
 	bodyBytes, err := json.Marshal(reqBody)
+	logrus.Debugf("Sending request for new eventsub subscription with body %q", reqBody)
 	if err != nil {
 		logrus.Warnf("Failed to marshal CreateSubscription request body due to error %v", err)
 		return nil, err
