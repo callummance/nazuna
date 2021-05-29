@@ -100,7 +100,10 @@ func (l *Listener) handleWebhook(w http.ResponseWriter, r *http.Request) {
 	//Verify message is from twitch and get body
 	body := l.verifyMessage(&w, r, l.secret)
 	if body == nil {
+		logrus.Trace("Rejected an HTTP reqest as it was not from Twitch")
 		return
+	} else {
+		logrus.Tracef("Got request from Twitch: %s", string(body[:]))
 	}
 	//Take note of the fact the message has been recieved
 	msgID := strings.Join(r.Header["Twitch-Eventsub-Message-Id"], "")
